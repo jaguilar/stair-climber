@@ -9,7 +9,7 @@ motor_back = Motor(Port.A)
 motor_lift = Motor(Port.D)
 
 sensor_gryo = GyroSensor(Port.S2)
-sensor_lift_limit = TouchSensor(Port.S3)
+sensor_lift = TouchSensor(Port.S3)
 
 
 def calibrate():
