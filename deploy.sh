@@ -5,8 +5,8 @@ if uname -a | grep "microsoft.*WSL2" >/dev/null; then
     export SSH="ssh.exe" 
     export SCP="scp.exe"
 else
-    export SSH="ssh" 
-    export SCP="scp"
+    SSH="ssh" 
+    SCP="scp"
 fi
 
 SSH_TARGET="robot@ev3dev.local"
