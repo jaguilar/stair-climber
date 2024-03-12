@@ -1,9 +1,13 @@
 #! /usr/bin/env pybricks-micropython
 
+from pybricks.hubs import EV3Brick
 from pybricks.ev3devices import Motor, TouchSensor, GyroSensor
-from pybricks.parameters import Port,Direction, Stop
-from pybricks.tools import wait
+from pybricks.parameters import Port, Direction, Stop, Button
+from pybricks.tools import wait, DataLog, StopWatch
+import math
+import time
 
+brick = EV3Brick()
 
 motor_front = Motor(
     Port.B, gears=[8, 40], positive_direction=Direction.COUNTERCLOCKWISE
@@ -15,6 +19,24 @@ motor_lift = Motor(
 
 # The total degrees of rotation from the top of the lift to the bottom.
 MOTOR_LIFT_HEIGHT = const(500)
+
+
+# Rear wheel diameter: 9 units.
+# Circumference:            pi * 9 [diameter] = 28.3.
+# Units/deg:                360 / 28.3 [cir] = 12.7
+WHEEL_FRONT_DEG_PER_UNIT = 12.7
+
+
+# Rear wheel diameter: 7 units.
+# Circumference:            pi * 7 [diameter] = 22.0.
+# Units/deg:                360 / 22.0 [cir] = 16.4
+WHEEL_REAR_DEG_PER_UNIT = 16.4
+
+
+# Lift track gear diameter: 5 units. Track piece is approx 1 unit thick.
+# Circumference:            pi * 6 [dia + track] = 18.8.
+# Units/deg:                360 / 18.8 [cir] = 19.1
+LIFT_DEG_PER_UNIT = 19.1
 
 sensor_gryo = GyroSensor(Port.S2, Direction.COUNTERCLOCKWISE)
 sensor_lift = TouchSensor(Port.S3)
@@ -28,27 +50,19 @@ def calibrate():
     # using RunUntilStalled.
     if not sensor_lift.pressed():
         motor_lift.dc(50)
+        motor_back.run(-0.5 * WHEEL_REAR_DEG_PER_UNIT)
         while not sensor_lift.pressed():
             wait(3)
         motor_lift.stop()
+        motor_back.stop()
 
     # We're at the top of the range of the lift. Now we need to run it downward. to the bottom.
+    motor_back.run(0.5 * WHEEL_REAR_DEG_PER_UNIT)
     motor_lift.run_angle(100, -MOTOR_LIFT_HEIGHT)
+    motor_back.brake()
     motor_lift.hold()
     motor_lift.reset_angle(0)
     sensor_gryo.reset_angle(0)
-
-
-# Rear wheel diameter: 9 units.
-# Circumference:            pi * 9 [diameter] = 28.3.
-# Units/deg:                360 / 28.3 [cir] = 12.7
-WHEEL_FRONT_DEG_PER_UNIT = 12.7
-
-
-# Rear wheel diameter: 7 units.
-# Circumference:            pi * 7 [diameter] = 22.0.
-# Units/deg:                360 / 22.0 [cir] = 16.4
-WHEEL_REAR_DEG_PER_UNIT = 16.4
 
 
 # Note when we talk of units here we're talking of lego units on the lego grid.
@@ -68,24 +82,42 @@ def motors_brake():
     motor_back.brake()
 
 
+def motors_hold():
+    motor_front.hold()
+    motor_back.hold()
+
+
 def main():
     calibrate()
 
-    # TODO: jaguilar - observed the motors "running until stalled" in action. They
-    # don't actually stall. They cause the robot to start tilting backwards.
-    # Plan:
-    # * Run the motors more slowly.
-    # * The moment backwards tilt is detected, stop.
-    # * Reverse slowly until no backward tilt.
-    # * Raise the crane, and run the front motor slowly forward.
-    # * Run rear motor with light duty cycle? 5-10%?
-    # * When forward tilt is detected, we're on the next stair.
-    # * Then, we'll need to roll forward until we have two wheel contact on the front.
-    #   This should be a fixed distance every time.
-    # * After two wheels are on the next step, raise the crane.
-    # * Return to start.
-
+    while Button.CENTER not in brick.buttons.pressed():
+        wait(10)
+    brick.speaker.beep()
     wait(1000)
+
+    # Run the motors forward until the gyro is off by more than 5 degrees.
+    motors_run(7)
+    while math.fabs(sensor_gryo.angle()) < 10:
+        wait(10)
+
+    motors_run(3)
+
+    brick.speaker.beep()
+    wait(1000)
+
+    # Run the lift to its max height. Don't wait though.
+    motor_lift.run_target(7 * LIFT_DEG_PER_UNIT, MOTOR_LIFT_HEIGHT, wait=False)
+
+    while sensor_gryo.angle() < 3 and not sensor_lift.pressed():
+        wait(10)
+    motor_lift.stop()
+
+    wait(2500)
+
+    motors_run(7)
+    motor_lift.run_target(10 * LIFT_DEG_PER_UNIT, 0, wait=True)
+    wait(2500)
+    motors_brake()
 
 if __name__ == '__main__':
     main()

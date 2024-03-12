@@ -13,4 +13,6 @@ SSH_TARGET="robot@ev3dev.local"
 PROJECT_DIR=/home/robot/stair_climber
 $SSH "$SSH_TARGET" "mkdir -p $PROJECT_DIR"
 $SCP *.py "$SSH_TARGET:$PROJECT_DIR"
-$SSH -t "$SSH_TARGET" "cd $PROJECT_DIR && brickrun -r -- pybricks-micropython main.py"
+( $SSH -t "$SSH_TARGET" "cd $PROJECT_DIR && ( rm -f *.csv 2>/dev/null || /bin/true ) && brickrun -r -- pybricks-micropython main.py" || /bin/true )
+mkdir -p ./.logs
+$SCP "$SSH_TARGET:$PROJECT_DIR/*.csv" ./.logs
